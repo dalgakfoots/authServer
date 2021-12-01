@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+<div>
+    <p th:text="${client.getClientId()}">It is Error</p>
+    <p th:text="${client.getClientSecret()}">It is Error</p>
+    <p th:text="${client.getRedirectUri()}">It is Error</p>
+    <p th:text="${reqId}">It is Error</p>
+    <table>
+        <h3>those scope will use by Client Application. you don't have a choice</h3>
+        <tr th:each="elem : ${scope}">
+            <td th:text="${elem}"></td>
+        </tr>
+    </table>
+    <form action="/approve" method="post">
+        <input type="hidden" name="reqId" th:value="${reqId}">
+        <input type="hidden" name="scope" th:value="${scope}">
+        <input type="submit" name="approve" value="Approve">
+
+    </form>
+</div>
+</body>
+</html>
