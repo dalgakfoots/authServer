@@ -2,6 +2,8 @@ package onthelive.kr.authServer.controller;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import onthelive.kr.authServer.entity.CodeEntity;
@@ -199,24 +201,28 @@ public class AuthorAndAuthenController {
                     String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
                     byte[] sharedSecret = stringSharedSecret.getBytes();
 
-                    HashMap<String,Object> payload = new HashMap<>();
-                    payload.put("iss","http://localhost:8091/");
-                    payload.put("sub", clientId);
-                    payload.put("aud","http://localhost:9002/");
-                    payload.put("iat", LocalDateTime.now().toString());
-                    payload.put("exp", LocalDateTime.now().plusMinutes(5).toString());
-                    payload.put("jti", RandomStringUtils.randomAlphanumeric(8));
-
                     // HS256을 이용한 대칭 시그니처
                     // TODO 시크릿의 최소 크기는 256비트임.
                     JWSSigner signer = new MACSigner(sharedSecret);
-                    JWSObject jwsObject = new JWSObject(
-                            new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
-                    );
 
-                    jwsObject.sign(signer);
+                    // JWTClaimsSet Test
+                    JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
+                            .issuer("http://localhost:8091")
+                            .subject(clientId)
+                            .audience("http://localhost:9002")
+                            .issueTime(new Date(new Date().getTime()))
+                            .expirationTime(new Date(new Date().getTime() + 5 * 1000))
+                            .jwtID(RandomStringUtils.randomAlphanumeric(8))
+                            .build();
 
-                    String access_token = jwsObject.serialize();
+                    // JWTClaimsSet Test
+                    SignedJWT signedJWT = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claimsSet);
+
+
+                    // JWTClaimsSet Test
+                    signedJWT.sign(signer);
+
+                    String access_token = signedJWT.serialize();
                     String refresh_token = RandomStringUtils.randomAlphanumeric(32);
 
                     TokenResponseEntity tokenResponseEntity = new TokenResponseEntity(
