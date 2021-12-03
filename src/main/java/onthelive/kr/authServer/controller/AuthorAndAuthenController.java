@@ -1,5 +1,7 @@
 package onthelive.kr.authServer.controller;
 
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.MACSigner;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import onthelive.kr.authServer.entity.CodeEntity;
@@ -10,6 +12,7 @@ import onthelive.kr.authServer.model.TokenResponse;
 import onthelive.kr.authServer.service.AuthorService;
 import onthelive.kr.authServer.service.UtilService;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -20,6 +23,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Controller
@@ -142,7 +146,7 @@ public class AuthorAndAuthenController {
      *       일치하는 refresh token을 발견한 경우, 새로운 access token 을 발급하여 전달한다.
      * */
     @PostMapping("/token")
-    public ResponseEntity postToken(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity postToken(HttpServletRequest request, HttpServletResponse response) throws JOSEException {
         String auth = request.getHeader("authorization");
         String clientId = "";
         String clientSecret = "";
@@ -192,7 +196,27 @@ public class AuthorAndAuthenController {
                 authorService.removeCode(key);
                 if (requestEntity.getClientId().equals(clientId)) {
 
-                    String access_token = RandomStringUtils.randomAlphanumeric(32);
+                    String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
+                    byte[] sharedSecret = stringSharedSecret.getBytes();
+
+                    HashMap<String,Object> payload = new HashMap<>();
+                    payload.put("iss","http://localhost:8091/");
+                    payload.put("sub", clientId);
+                    payload.put("aud","http://localhost:9002/");
+                    payload.put("iat", LocalDateTime.now().toString());
+                    payload.put("exp", LocalDateTime.now().plusMinutes(5).toString());
+                    payload.put("jti", RandomStringUtils.randomAlphanumeric(8));
+
+                    // HS256을 이용한 대칭 시그니처
+                    // TODO 시크릿의 최소 크기는 256비트임.
+                    JWSSigner signer = new MACSigner(sharedSecret);
+                    JWSObject jwsObject = new JWSObject(
+                            new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
+                    );
+
+                    jwsObject.sign(signer);
+
+                    String access_token = jwsObject.serialize();
                     String refresh_token = RandomStringUtils.randomAlphanumeric(32);
 
                     TokenResponseEntity tokenResponseEntity = new TokenResponseEntity(

@@ -20,7 +20,7 @@ public class TokenResponseEntity implements Serializable {
     @Column(name="client_id")
     private String clientId;
 
-    @Column(name="access_token")
+    @Column(name="access_token" , length = 2000)
     private String accessToken;
 
     @Column(name="refresh_token")
