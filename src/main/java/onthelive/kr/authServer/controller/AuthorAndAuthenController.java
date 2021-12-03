@@ -201,28 +201,27 @@ public class AuthorAndAuthenController {
                     String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
                     byte[] sharedSecret = stringSharedSecret.getBytes();
 
+                    HashMap<String,Object> payload = new HashMap<>();
+                    payload.put("iss","http://localhost:8091/");
+                    payload.put("sub", clientId);
+                    payload.put("aud","http://localhost:9002/");
+                    payload.put("iat", LocalDateTime.now().toString());
+                    payload.put("exp", LocalDateTime.now().plusMinutes(5).toString());
+                    payload.put("iat", new Date().getTime());
+                    payload.put("exp", new Date().getTime() + (1000 * 60 * 5));
+                    payload.put("jti", RandomStringUtils.randomAlphanumeric(8));
+
                     // HS256을 이용한 대칭 시그니처
                     // TODO 시크릿의 최소 크기는 256비트임.
                     JWSSigner signer = new MACSigner(sharedSecret);
 
-                    // JWTClaimsSet Test
-                    JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
-                            .issuer("http://localhost:8091")
-                            .subject(clientId)
-                            .audience("http://localhost:9002")
-                            .issueTime(new Date(new Date().getTime()))
-                            .expirationTime(new Date(new Date().getTime() + 5 * 1000))
-                            .jwtID(RandomStringUtils.randomAlphanumeric(8))
-                            .build();
+                    JWSObject jwsObject = new JWSObject(
+                            new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
+                    );
 
-                    // JWTClaimsSet Test
-                    SignedJWT signedJWT = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claimsSet);
+                    jwsObject.sign(signer);
 
-
-                    // JWTClaimsSet Test
-                    signedJWT.sign(signer);
-
-                    String access_token = signedJWT.serialize();
+                    String access_token = jwsObject.serialize();
                     String refresh_token = RandomStringUtils.randomAlphanumeric(32);
 
                     TokenResponseEntity tokenResponseEntity = new TokenResponseEntity(
