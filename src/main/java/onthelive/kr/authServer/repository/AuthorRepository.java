@@ -3,6 +3,8 @@ package onthelive.kr.authServer.repository;
 import lombok.RequiredArgsConstructor;
 import onthelive.kr.authServer.entity.*;
 import onthelive.kr.authServer.model.Client;
+import org.apache.ibatis.exceptions.TooManyResultsException;
+import org.hibernate.NonUniqueResultException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 

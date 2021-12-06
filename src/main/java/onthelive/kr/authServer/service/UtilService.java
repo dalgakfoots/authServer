@@ -1,5 +1,7 @@
 package onthelive.kr.authServer.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import onthelive.kr.authServer.entity.ClientEntity;
 import onthelive.kr.authServer.model.Client;
@@ -50,5 +52,20 @@ public class UtilService {
 
     public List getScopes(String scope) {
         return Arrays.asList(scope.split(" "));
+    }
+
+    public HashMap<String, String> getPayload(String serializedIdToken) throws JsonProcessingException {
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        System.out.println("serializedIdToken = " + serializedIdToken);
+        String payload = serializedIdToken.split("\\.")[1];
+        System.out.println("payload = " + payload);
+        byte[] decode = Base64.getDecoder().decode(payload.getBytes());
+        String decodedPayload = new String(decode);
+        System.out.println("decodedPayload = " + decodedPayload);
+
+        HashMap<String, String> payloadMapper = objectMapper.readValue(decodedPayload, HashMap.class);
+        return payloadMapper;
     }
 }

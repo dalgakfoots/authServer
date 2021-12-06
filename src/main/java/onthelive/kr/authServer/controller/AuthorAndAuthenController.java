@@ -1,5 +1,6 @@
 package onthelive.kr.authServer.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -353,6 +354,38 @@ public class AuthorAndAuthenController {
             return new ResponseEntity(introspectionResponse,HttpStatus.OK);
         }
 
+    }
+
+    /*
+    * 리소스 서버가 Auth 서버에게 디코딩 된 Serialized Id Token의 Payload를 요청한다.
+    *
+    * */
+
+    @PostMapping("/idToken")
+    public ResponseEntity postIdToken(HttpServletRequest request) throws JsonProcessingException {
+
+        String auth = request.getHeader("authorization");
+        HashMap<String, String> clientCredentials = utilService.decodeClientCredentials(auth);
+        String id = clientCredentials.get("id");
+        String secret = clientCredentials.get("secret");
+
+        ProtectedResourceEntity protectedResourceEntity = authorService.getProtectedResource(id);
+
+        if(protectedResourceEntity.getId() == null){
+            return new ResponseEntity(HttpStatus.UNAUTHORIZED);
+        }
+
+        if(!protectedResourceEntity.getResourceSecret().equals(secret)){
+            return new ResponseEntity(HttpStatus.UNAUTHORIZED);
+        }
+
+        String inToken = request.getParameter("token");
+        TokenResponseEntity tokenResponse = authorService.getTokenResponseByAccessToken(inToken);
+        String serializedIdToken = tokenResponse.getSerializedIdToken();
+
+        HashMap<String, String> response = utilService.getPayload(serializedIdToken);
+
+        return new ResponseEntity(response, HttpStatus.OK);
     }
 
     @PostMapping("/revoke")
