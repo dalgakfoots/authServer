@@ -31,7 +31,7 @@ public class UtilService {
         return result;
     }
 
-    public HashMap decodeClientCredentials(String context) {
+    public HashMap<String, String> decodeClientCredentials(String context) {
         String[] basic_s = context.split("Basic "); // Basic b2F1dGgtY2xpZW50LTE6b2F1dGgtY2xpZW50LXNlY3JldC0x
         byte[] decode = Base64.getDecoder().decode(basic_s[1]); // b2F1dGgtY2xpZW50LTE6b2F1dGgtY2xpZW50LXNlY3JldC0x
         String decoded = new String(decode); // oauth-client-1:oauth-client-secret-1
@@ -41,7 +41,7 @@ public class UtilService {
         String id = arr[0];
         String secret = arr[1];
 
-        HashMap result = new HashMap();
+        HashMap<String, String> result = new HashMap<>();
         result.put("id", id);
         result.put("secret", secret);
 

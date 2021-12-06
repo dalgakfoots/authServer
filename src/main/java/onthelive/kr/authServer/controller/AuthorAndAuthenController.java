@@ -7,6 +7,7 @@ import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import onthelive.kr.authServer.entity.CodeEntity;
+import onthelive.kr.authServer.entity.ProtectedResourceEntity;
 import onthelive.kr.authServer.entity.RequestEntity;
 import onthelive.kr.authServer.entity.TokenResponseEntity;
 import onthelive.kr.authServer.model.Client;
@@ -293,6 +294,57 @@ public class AuthorAndAuthenController {
         }
 
         return new ResponseEntity(HttpStatus.BAD_REQUEST);
+    }
+
+    /*
+    * 토큰 인트로스펙션
+    *
+    * Resource 서버가 Authorization 서버로 토큰의 유효성 질의를 실시한다.
+    *
+    * header : {
+    *   Authorizaiton : Basic {'resource server id : resource server secret'을 Base64로 encoding}
+    * }
+    * token = {Resource 서버가 Client로부터 전달 받은 Access Token}
+    *
+    * Authorization 서버에 Resource 서버의 id , secret 이 저장되어 있음을 전제한다.
+    *
+    * */
+    @PostMapping("/introspect")
+    public ResponseEntity postIntrospect(HttpServletRequest request) {
+
+        String auth = request.getHeader("authorization");
+        HashMap<String, String> clientCredentials = utilService.decodeClientCredentials(auth);
+        String id = clientCredentials.get("id");
+        String secret = clientCredentials.get("secret");
+
+        ProtectedResourceEntity protectedResourceEntity = authorService.getProtectedResource(id);
+
+        if(protectedResourceEntity.getId() == null){
+            return new ResponseEntity(HttpStatus.UNAUTHORIZED);
+        }
+
+        if(!protectedResourceEntity.getResourceSecret().equals(secret)){
+            return new ResponseEntity(HttpStatus.UNAUTHORIZED);
+        }
+
+        String inToken = request.getParameter("token");
+        TokenResponseEntity tokenResponse = authorService.getTokenResponseByAccessToken(inToken);
+        HashMap<String,Object> introspectionResponse = new HashMap<>();
+
+        if(tokenResponse.getClientId() != null){
+            introspectionResponse.put("active", true);
+            introspectionResponse.put("iss","http://localhost:8091/");
+            introspectionResponse.put("sub", tokenResponse.getClientId());
+            introspectionResponse.put("aud","http://localhost:9002/");
+            introspectionResponse.put("scope", tokenResponse.getScopes());
+            introspectionResponse.put("client_id",tokenResponse.getClientId());
+
+            return new ResponseEntity(introspectionResponse, HttpStatus.OK);
+        } else {
+            introspectionResponse.put("active", false);
+            return new ResponseEntity(introspectionResponse,HttpStatus.OK);
+        }
+
     }
 
 

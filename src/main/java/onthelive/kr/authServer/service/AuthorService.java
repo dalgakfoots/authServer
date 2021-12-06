@@ -2,10 +2,7 @@ package onthelive.kr.authServer.service;
 
 import jdk.jshell.execution.Util;
 import lombok.RequiredArgsConstructor;
-import onthelive.kr.authServer.entity.ClientEntity;
-import onthelive.kr.authServer.entity.CodeEntity;
-import onthelive.kr.authServer.entity.RequestEntity;
-import onthelive.kr.authServer.entity.TokenResponseEntity;
+import onthelive.kr.authServer.entity.*;
 import onthelive.kr.authServer.model.Client;
 import onthelive.kr.authServer.repository.AuthorRepository;
 import org.apache.coyote.Request;
@@ -104,4 +101,13 @@ public class AuthorService {
     public void removeTokenResponse(TokenResponseEntity tokenResponseEntity) {
         authorRepository.removeTokenResponse(tokenResponseEntity);
     }
+
+    public ProtectedResourceEntity getProtectedResource(String id) {
+        return authorRepository.getProtectedResource(id);
+    }
+
+    public TokenResponseEntity getTokenResponseByAccessToken(String accessToken) {
+        return authorRepository.getTokenResponseByAccessToken(accessToken);
+    }
+
 }

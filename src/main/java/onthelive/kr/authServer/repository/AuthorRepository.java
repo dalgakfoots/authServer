@@ -39,6 +39,19 @@ public class AuthorRepository {
         }
     }
 
+    public TokenResponseEntity getTokenResponseByAccessToken(String accessToken) {
+        try {
+
+            return em.createQuery("select t from TokenResponseEntity t where t.accessToken = :accessToken", TokenResponseEntity.class)
+                    .setParameter("accessToken", accessToken)
+                    .getSingleResult();
+
+        } catch (NoResultException e) {
+            e.printStackTrace();
+            return new TokenResponseEntity();
+        }
+    }
+
     public Client getClient(String clientId) {
         try {
             ClientEntity findResult = em.createQuery("select c from ClientEntity c where c.clientId = :clientId", ClientEntity.class)
@@ -49,12 +62,26 @@ public class AuthorRepository {
 
         } catch (NoResultException e) {
             e.printStackTrace();
-            return new Client("", "", "","");
+            return new Client("", "", "", "");
+        }
+    }
+
+
+    public ProtectedResourceEntity getProtectedResource(String id) {
+        ProtectedResourceEntity protectedResource = null;
+        try {
+            protectedResource = em.createQuery("select p from ProtectedResourceEntity p where p.resourceId = :resourceId", ProtectedResourceEntity.class)
+                    .setParameter("resourceId", id)
+                    .getSingleResult();
+            return protectedResource;
+        }catch (NoResultException e){
+            protectedResource = new ProtectedResourceEntity();
+            return protectedResource;
         }
     }
 
     @Transactional
-    public void saveRequest(RequestEntity requestEntity){
+    public void saveRequest(RequestEntity requestEntity) {
         em.persist(requestEntity);
     }
 
@@ -90,5 +117,6 @@ public class AuthorRepository {
     public void removeTokenResponse(TokenResponseEntity tokenResponseEntity) {
         em.remove(tokenResponseEntity);
     }
+
 
 }
