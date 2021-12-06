@@ -14,10 +14,11 @@ import java.util.List;
 @Table(name = "clients")
 public class ClientEntity implements Serializable {
 
-    public ClientEntity(String clientId , String clientSecret, String redirectUri){
+    public ClientEntity(String clientId , String clientSecret, String redirectUri, String scopes){
         setClientId(clientId);
         setClientSecret(clientSecret);
         setRedirectUri(redirectUri);
+        setScopes(scopes);
     }
 
     @Id @GeneratedValue

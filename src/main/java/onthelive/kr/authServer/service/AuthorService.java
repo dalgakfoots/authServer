@@ -1,15 +1,21 @@
 package onthelive.kr.authServer.service;
 
+import com.nimbusds.jose.*;
+import com.nimbusds.jose.crypto.MACSigner;
 import jdk.jshell.execution.Util;
 import lombok.RequiredArgsConstructor;
 import onthelive.kr.authServer.entity.*;
 import onthelive.kr.authServer.model.Client;
 import onthelive.kr.authServer.repository.AuthorRepository;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.coyote.Request;
+import org.aspectj.apache.bcel.classfile.Code;
 import org.springframework.stereotype.Service;
 
 import javax.persistence.NoResultException;
 import javax.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -57,13 +63,14 @@ public class AuthorService {
                 request.getRedirectUri(),
                 request.getState(),
                 request.getClientId(),
-                ""
+                "",
+                null
         );
 
         authorRepository.saveCode(codeEntity);
     }
 
-    public void saveCode(String code, RequestEntity request, String scopes) {
+    public void saveCode(String code, RequestEntity request, String scopes, UserEntity user) {
 
         CodeEntity codeEntity = new CodeEntity(
                 code,
@@ -72,7 +79,8 @@ public class AuthorService {
                 request.getRedirectUri(),
                 request.getState(),
                 request.getClientId(),
-                scopes
+                scopes,
+                user
         );
 
         authorRepository.saveCode(codeEntity);
@@ -110,4 +118,29 @@ public class AuthorService {
         return authorRepository.getTokenResponseByAccessToken(accessToken);
     }
 
+    public String generateSerializedIdToken(CodeEntity code) throws JOSEException {
+        String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
+        byte[] sharedSecret = stringSharedSecret.getBytes();
+
+        HashMap<String,Object> payload = new HashMap<>();
+        payload.put("iss","http://localhost:8091/");
+        payload.put("sub", code.getUser().getSub());
+        payload.put("aud",code.getClientId());
+        payload.put("iat", new Date().getTime());
+        payload.put("exp", new Date().getTime() + (1000 * 60 * 5));
+
+        JWSSigner signer = new MACSigner(sharedSecret);
+
+        JWSObject jwsObject = new JWSObject(
+                new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
+        );
+
+        jwsObject.sign(signer);
+
+        return jwsObject.serialize();
+    }
+
+    public UserEntity getUser(String user) {
+        return authorRepository.getUser(user);
+    }
 }

@@ -80,6 +80,20 @@ public class AuthorRepository {
         }
     }
 
+    public UserEntity getUser(String user) {
+        try {
+            UserEntity userEntity = em.createQuery("select u from UserEntity u where u.preferred_username = :userName", UserEntity.class)
+                    .setParameter("userName", user)
+                    .getSingleResult();
+            return userEntity;
+        }catch (NoResultException e){
+            e.printStackTrace();
+            return new UserEntity();
+        }catch (NonUniqueResultException e){
+            e.printStackTrace();
+            return new UserEntity();
+        }
+    }
     @Transactional
     public void saveRequest(RequestEntity requestEntity) {
         em.persist(requestEntity);

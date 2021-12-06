@@ -23,4 +23,8 @@ public class ProtectedResourceEntity {
     @Column(name = "resource_secret")
     private String resourceSecret;
 
+    public ProtectedResourceEntity(String resourceId, String resourceSecret) {
+        this.resourceId = resourceId;
+        this.resourceSecret = resourceSecret;
+    }
 }

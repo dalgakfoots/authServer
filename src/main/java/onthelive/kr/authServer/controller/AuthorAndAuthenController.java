@@ -6,10 +6,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import onthelive.kr.authServer.entity.CodeEntity;
-import onthelive.kr.authServer.entity.ProtectedResourceEntity;
-import onthelive.kr.authServer.entity.RequestEntity;
-import onthelive.kr.authServer.entity.TokenResponseEntity;
+import onthelive.kr.authServer.entity.*;
 import onthelive.kr.authServer.model.Client;
 import onthelive.kr.authServer.model.TokenResponse;
 import onthelive.kr.authServer.service.AuthorService;
@@ -120,7 +117,8 @@ public class AuthorAndAuthenController {
                 }
 
                 String code = RandomStringUtils.randomAlphanumeric(8);
-                authorService.saveCode(code, request, httpRequest.getParameter("scope"));
+                UserEntity user = authorService.getUser(httpRequest.getParameter("user"));
+                authorService.saveCode(code, request, httpRequest.getParameter("scope"), user); // 인증된 사용자의 ID
 
                 attributes.addAttribute("code", code);
                 attributes.addAttribute("state", request.getState());
@@ -222,6 +220,12 @@ public class AuthorAndAuthenController {
 
                     jwsObject.sign(signer);
 
+                    // ID Token 발급
+                    String serializedIdToken = "";
+                    if(codeEntity.getScopes().contains("openid")){
+                        serializedIdToken = authorService.generateSerializedIdToken(codeEntity);
+                    }
+
                     String access_token = jwsObject.serialize();
                     String refresh_token = RandomStringUtils.randomAlphanumeric(32);
 
@@ -230,18 +234,22 @@ public class AuthorAndAuthenController {
                             access_token,
                             refresh_token,
                             "Bearer",
-                            codeEntity.getScopes()
+                            codeEntity.getScopes(),
+                            serializedIdToken
                     );
 
                     authorService.saveTokenResponse(tokenResponseEntity);
                     log.info("access token 발급 : " + access_token);
+                    // Id Token log
+                    log.info("ID token 발급 : "+ serializedIdToken);
 
                     TokenResponse tokenResponse = new TokenResponse(
                             tokenResponseEntity.getClientId(),
                             tokenResponseEntity.getAccessToken(),
                             tokenResponseEntity.getRefreshToken(),
                             tokenResponseEntity.getTokenType(),
-                            tokenResponseEntity.getScopes()
+                            tokenResponseEntity.getScopes(),
+                            tokenResponseEntity.getSerializedIdToken()
                     );
 
                     return new ResponseEntity(tokenResponse, HttpStatus.OK);
@@ -271,16 +279,16 @@ public class AuthorAndAuthenController {
                         clientId,
                         access_token,
                         refreshToken,
-                        "Bearer", tokenResponseEntity.getScopes()
-                ));
+                        "Bearer", tokenResponseEntity.getScopes() , "TODO TAKE IDTOKEN"
+                )); // TODO 리프레쉬토큰을 사용할 때에도 ID TOKEN을 재발급 해야하는가? 고려해야함.
 
                 TokenResponse tokenResponse = new TokenResponse(
                         nextTokenResponseEntity.getClientId(),
                         nextTokenResponseEntity.getAccessToken(),
                         nextTokenResponseEntity.getRefreshToken(),
                         nextTokenResponseEntity.getTokenType() ,
-                        nextTokenResponseEntity.getScopes()
-                );
+                        nextTokenResponseEntity.getScopes(), ""
+                ); // TODO 리프레쉬토큰을 사용할 때에도 ID TOKEN을 재발급 해야하는가? 고려해야함.
 
                 return new ResponseEntity(tokenResponse, HttpStatus.OK);
 

@@ -31,11 +31,15 @@ public class TokenResponseEntity implements Serializable {
 
     private String scopes;
 
-    public TokenResponseEntity(String clientId, String accessToken, String refreshToken, String tokenType, String scopes) {
+    private String serializedIdToken;
+
+    public TokenResponseEntity(String clientId, String accessToken, String refreshToken, String tokenType, String scopes, String serializedIdToken) {
         this.clientId = clientId;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.tokenType = tokenType;
         this.scopes = scopes;
+        this.serializedIdToken =serializedIdToken;
     }
+
 }
