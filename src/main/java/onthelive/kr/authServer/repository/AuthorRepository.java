@@ -115,7 +115,9 @@ public class AuthorRepository {
 
     @Transactional
     public void removeTokenResponse(TokenResponseEntity tokenResponseEntity) {
-        em.remove(tokenResponseEntity);
+        em.createQuery("delete from TokenResponseEntity t where t.clientId = :clientId")
+                .setParameter("clientId", tokenResponseEntity.getClientId())
+                .executeUpdate();
     }
 
 

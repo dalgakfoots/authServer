@@ -347,5 +347,44 @@ public class AuthorAndAuthenController {
 
     }
 
+    @PostMapping("/revoke")
+    public ResponseEntity postRevoke(HttpServletRequest request) {
+        String auth = request.getHeader("authorization");
+
+        HashMap<String, String> clientCredentials = utilService.decodeClientCredentials(auth);
+        String clientId = clientCredentials.get("id");
+        String clientSecret = clientCredentials.get("secret");
+
+        if(request.getParameter("client_id") != null){
+            if(clientId != null){
+                return new ResponseEntity(
+                        new HashMap<>().put("error", "invalid_client"),
+                        HttpStatus.UNAUTHORIZED);
+            }
+
+            clientId = request.getParameter("client_id");
+            clientSecret = request.getParameter("client_secret");
+        }
+
+        Client client = authorService.getClient(clientId);
+
+        if(client.getClientId().equals("")){
+            return new ResponseEntity(
+                    new HashMap<>().put("error", "invalid_client"),
+                    HttpStatus.UNAUTHORIZED);
+        }
+
+        if(!client.getClientSecret().equals(clientSecret)){
+            return new ResponseEntity(
+                    new HashMap<>().put("error", "invalid_client"),
+                    HttpStatus.UNAUTHORIZED);
+        }
+
+        String inToken = request.getParameter("token");
+        TokenResponseEntity tokenResponseByAccessToken = authorService.getTokenResponseByAccessToken(inToken);
+        authorService.removeTokenResponse(tokenResponseByAccessToken);
+        return new ResponseEntity(HttpStatus.NO_CONTENT);
+    }
+
 
 }
