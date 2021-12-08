@@ -7,23 +7,24 @@
 <body>
 
 <div>
-    <p th:text="${client.getClientId()}">It is Error</p>
-    <p th:text="${client.getClientSecret()}">It is Error</p>
-    <p th:text="${client.getRedirectUri()}">It is Error</p>
-    <p th:text="${reqId}">It is Error</p>
+<!--    <p th:text="${client.getClientId()}">It is Error</p>-->
+<!--    <p th:text="${client.getClientSecret()}">It is Error</p>-->
+<!--    <p th:text="${client.getRedirectUri()}">It is Error</p>-->
+<!--    <p th:text="${reqId}">It is Error</p>-->
+
+    <h1 th:text="Hello + ' ' + ${email}">ERROR</h1>
+
     <table>
-        <h3>those scope will use by Client Application. you don't have a choice</h3>
-        <tr th:each="elem : ${scope}">
-            <td th:text="${elem}"></td>
-        </tr>
+        <h3>those scope will use by This Client Application. you don't have a choice</h3>
+        <ul th:each="elem : ${scope}">
+            <li th:text="${elem}"></li>
+        </ul>
     </table>
     <form action="/approve" method="post">
         <input type="hidden" name="reqId" th:value="${reqId}">
         <input type="hidden" name="scope" th:value="${scope}">
+        <input type="hidden" name="email" th:value="${email}">
         <input type="submit" name="approve" value="Approve">
-        <select name="user">
-            <option value="alice">Alice</option>
-        </select>
     </form>
 </div>
 </body>

@@ -33,7 +33,6 @@ public class CodeEntity {
 
     private String scopes;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    private UserEntity user;
+    private String user;
 
 }

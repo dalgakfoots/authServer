@@ -3,23 +3,20 @@ package onthelive.kr.authServer.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import onthelive.kr.authServer.entity.*;
 import onthelive.kr.authServer.model.Client;
 import onthelive.kr.authServer.model.TokenResponse;
+import onthelive.kr.authServer.model.UserLoginProperty;
 import onthelive.kr.authServer.service.AuthorService;
 import onthelive.kr.authServer.service.UtilService;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.json.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpServletRequest;
@@ -53,13 +50,15 @@ public class AuthorAndAuthenController {
     public String getAuthorize(HttpServletRequest httpRequest, RedirectAttributes attributes, Model model) {
         String clientId = httpRequest.getParameter("client_id");
         String scopes = httpRequest.getParameter("scope");
+        // 사용자 정보
+        String email = httpRequest.getParameter("email");
 
         Client client = authorService.getClient(clientId);
         List requestScopes = utilService.getScopes(scopes);
         List clientScopes = utilService.getScopes(client.getScopes());
 
         List temp = new ArrayList(requestScopes);
-        Collections.copy(temp , requestScopes);
+        Collections.copy(temp, requestScopes);
         temp.removeAll(clientScopes);
 
         if (client.getClientId().equals("")) {
@@ -69,16 +68,20 @@ public class AuthorAndAuthenController {
         } else if (temp.size() > 0) {
             log.error("invalid scope error in /authorize");
             attributes.addAttribute("error", "invalid_scope");
-            return "redirect:"+client.getRedirectUri();
-        } else {
+            return "redirect:" + client.getRedirectUri();
+        } else if(!email.equals("")){
             String reqId = RandomStringUtils.randomAlphanumeric(8);
             authorService.saveRequest(reqId, httpRequest);
 
             model.addAttribute("client", client);
             model.addAttribute("reqId", reqId);
             model.addAttribute("scope", scopes);
+
+            // 사용자 정보
+            model.addAttribute("email", httpRequest.getParameter("email"));
             return "/approve";
         }
+        return "/error";
     }
 
     /*
@@ -106,19 +109,21 @@ public class AuthorAndAuthenController {
                 List clientScopes = utilService.getScopes(authorService.getClient(request.getClientId()).getScopes());
 
                 List temp = new ArrayList(requestScopes);
-                Collections.copy(temp , requestScopes);
+                Collections.copy(temp, requestScopes);
                 temp.removeAll(clientScopes);
 
-                if(temp.size() > 0){
+                if (temp.size() > 0) {
                     log.error("invalid scope error in /approve");
                     System.out.println("httpRequest.getParameter(\"scope\") = " + httpRequest.getParameter("scope"));
                     System.out.println("authorService.getClient(request.getClientId()).getScopes() = " + authorService.getClient(request.getClientId()).getScopes());
-                    attributes.addAttribute("error","invalid_scope");
+                    attributes.addAttribute("error", "invalid_scope");
                     return "redirect:" + request.getRedirectUri();
                 }
 
                 String code = RandomStringUtils.randomAlphanumeric(8);
-                UserEntity user = authorService.getUser(httpRequest.getParameter("user"));
+//                UserEntity user = authorService.getUser(httpRequest.getParameter("user"));
+                String user = httpRequest.getParameter("email"); // /loginAction -> /authorize -> /approve
+
                 authorService.saveCode(code, request, httpRequest.getParameter("scope"), user); // 인증된 사용자의 ID
 
                 attributes.addAttribute("code", code);
@@ -201,10 +206,10 @@ public class AuthorAndAuthenController {
                     String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
                     byte[] sharedSecret = stringSharedSecret.getBytes();
 
-                    HashMap<String,Object> payload = new HashMap<>();
-                    payload.put("iss","http://localhost:8091/");
+                    HashMap<String, Object> payload = new HashMap<>();
+                    payload.put("iss", "http://localhost:8091/");
                     payload.put("sub", clientId);
-                    payload.put("aud","http://localhost:9002/");
+                    payload.put("aud", "http://localhost:9002/");
                     payload.put("iat", LocalDateTime.now().toString());
                     payload.put("exp", LocalDateTime.now().plusMinutes(5).toString());
                     payload.put("iat", new Date().getTime());
@@ -223,7 +228,7 @@ public class AuthorAndAuthenController {
 
                     // ID Token 발급
                     String serializedIdToken = "";
-                    if(codeEntity.getScopes().contains("openid")){
+                    if (codeEntity.getScopes().contains("openid")) {
                         serializedIdToken = authorService.generateSerializedIdToken(codeEntity);
                     }
 
@@ -242,7 +247,7 @@ public class AuthorAndAuthenController {
                     authorService.saveTokenResponse(tokenResponseEntity);
                     log.info("access token 발급 : " + access_token);
                     // Id Token log
-                    log.info("ID token 발급 : "+ serializedIdToken);
+                    log.info("ID token 발급 : " + serializedIdToken);
 
                     TokenResponse tokenResponse = new TokenResponse(
                             tokenResponseEntity.getClientId(),
@@ -280,14 +285,14 @@ public class AuthorAndAuthenController {
                         clientId,
                         access_token,
                         refreshToken,
-                        "Bearer", tokenResponseEntity.getScopes() , "TODO TAKE IDTOKEN"
+                        "Bearer", tokenResponseEntity.getScopes(), "TODO TAKE IDTOKEN"
                 )); // TODO 리프레쉬토큰을 사용할 때에도 ID TOKEN을 재발급 해야하는가? 고려해야함.
 
                 TokenResponse tokenResponse = new TokenResponse(
                         nextTokenResponseEntity.getClientId(),
                         nextTokenResponseEntity.getAccessToken(),
                         nextTokenResponseEntity.getRefreshToken(),
-                        nextTokenResponseEntity.getTokenType() ,
+                        nextTokenResponseEntity.getTokenType(),
                         nextTokenResponseEntity.getScopes(), ""
                 ); // TODO 리프레쉬토큰을 사용할 때에도 ID TOKEN을 재발급 해야하는가? 고려해야함.
 
@@ -306,18 +311,18 @@ public class AuthorAndAuthenController {
     }
 
     /*
-    * 토큰 인트로스펙션
-    *
-    * Resource 서버가 Authorization 서버로 토큰의 유효성 질의를 실시한다.
-    *
-    * header : {
-    *   Authorizaiton : Basic {'resource server id : resource server secret'을 Base64로 encoding}
-    * }
-    * token = {Resource 서버가 Client로부터 전달 받은 Access Token}
-    *
-    * Authorization 서버에 Resource 서버의 id , secret 이 저장되어 있음을 전제한다.
-    *
-    * */
+     * 토큰 인트로스펙션
+     *
+     * Resource 서버가 Authorization 서버로 토큰의 유효성 질의를 실시한다.
+     *
+     * header : {
+     *   Authorizaiton : Basic {'resource server id : resource server secret'을 Base64로 encoding}
+     * }
+     * token = {Resource 서버가 Client로부터 전달 받은 Access Token}
+     *
+     * Authorization 서버에 Resource 서버의 id , secret 이 저장되어 있음을 전제한다.
+     *
+     * */
     @PostMapping("/introspect")
     public ResponseEntity postIntrospect(HttpServletRequest request) {
 
@@ -328,38 +333,38 @@ public class AuthorAndAuthenController {
 
         ProtectedResourceEntity protectedResourceEntity = authorService.getProtectedResource(id);
 
-        if(protectedResourceEntity.getId() == null){
+        if (protectedResourceEntity.getId() == null) {
             return new ResponseEntity(HttpStatus.UNAUTHORIZED);
         }
 
-        if(!protectedResourceEntity.getResourceSecret().equals(secret)){
+        if (!protectedResourceEntity.getResourceSecret().equals(secret)) {
             return new ResponseEntity(HttpStatus.UNAUTHORIZED);
         }
 
         String inToken = request.getParameter("token");
         TokenResponseEntity tokenResponse = authorService.getTokenResponseByAccessToken(inToken);
-        HashMap<String,Object> introspectionResponse = new HashMap<>();
+        HashMap<String, Object> introspectionResponse = new HashMap<>();
 
-        if(tokenResponse.getClientId() != null){
+        if (tokenResponse.getClientId() != null) {
             introspectionResponse.put("active", true);
-            introspectionResponse.put("iss","http://localhost:8091/");
+            introspectionResponse.put("iss", "http://localhost:8091/");
             introspectionResponse.put("sub", tokenResponse.getClientId());
-            introspectionResponse.put("aud","http://localhost:9002/");
+            introspectionResponse.put("aud", "http://localhost:9002/");
             introspectionResponse.put("scope", tokenResponse.getScopes());
-            introspectionResponse.put("client_id",tokenResponse.getClientId());
+            introspectionResponse.put("client_id", tokenResponse.getClientId());
 
             return new ResponseEntity(introspectionResponse, HttpStatus.OK);
         } else {
             introspectionResponse.put("active", false);
-            return new ResponseEntity(introspectionResponse,HttpStatus.OK);
+            return new ResponseEntity(introspectionResponse, HttpStatus.OK);
         }
 
     }
 
     /*
-    * 리소스 서버가 Auth 서버에게 디코딩 된 Serialized Id Token의 Payload를 요청한다.
-    *
-    * */
+     * 리소스 서버가 Auth 서버에게 디코딩 된 Serialized Id Token의 Payload를 요청한다.
+     *
+     * */
 
     @PostMapping("/idToken")
     public ResponseEntity postIdToken(HttpServletRequest request) throws JsonProcessingException {
@@ -371,11 +376,11 @@ public class AuthorAndAuthenController {
 
         ProtectedResourceEntity protectedResourceEntity = authorService.getProtectedResource(id);
 
-        if(protectedResourceEntity.getId() == null){
+        if (protectedResourceEntity.getId() == null) {
             return new ResponseEntity(HttpStatus.UNAUTHORIZED);
         }
 
-        if(!protectedResourceEntity.getResourceSecret().equals(secret)){
+        if (!protectedResourceEntity.getResourceSecret().equals(secret)) {
             return new ResponseEntity(HttpStatus.UNAUTHORIZED);
         }
 
@@ -388,6 +393,11 @@ public class AuthorAndAuthenController {
         return new ResponseEntity(response, HttpStatus.OK);
     }
 
+
+    /*
+     *  클라이언트의 Access Token 폐기 요청
+     *
+     * */
     @PostMapping("/revoke")
     public ResponseEntity postRevoke(HttpServletRequest request) {
         String auth = request.getHeader("authorization");
@@ -396,8 +406,8 @@ public class AuthorAndAuthenController {
         String clientId = clientCredentials.get("id");
         String clientSecret = clientCredentials.get("secret");
 
-        if(request.getParameter("client_id") != null){
-            if(clientId != null){
+        if (request.getParameter("client_id") != null) {
+            if (clientId != null) {
                 return new ResponseEntity(
                         new HashMap<>().put("error", "invalid_client"),
                         HttpStatus.UNAUTHORIZED);
@@ -409,13 +419,13 @@ public class AuthorAndAuthenController {
 
         Client client = authorService.getClient(clientId);
 
-        if(client.getClientId().equals("")){
+        if (client.getClientId().equals("")) {
             return new ResponseEntity(
                     new HashMap<>().put("error", "invalid_client"),
                     HttpStatus.UNAUTHORIZED);
         }
 
-        if(!client.getClientSecret().equals(clientSecret)){
+        if (!client.getClientSecret().equals(clientSecret)) {
             return new ResponseEntity(
                     new HashMap<>().put("error", "invalid_client"),
                     HttpStatus.UNAUTHORIZED);
@@ -427,5 +437,70 @@ public class AuthorAndAuthenController {
         return new ResponseEntity(HttpStatus.NO_CONTENT);
     }
 
+    /*
+     *  클라이언트의 사용자 인증 페이지 요청
+     *  서버에 등록된 클라이언트 인지 확인 이후 진행
+     *
+     * */
+    @GetMapping("/login")
+    public String getLogin(HttpServletRequest request, Model model) {
 
+        String clientId = request.getParameter("client_id");
+        Client client = authorService.getClient(clientId);
+        if (client.getClientId().equals("")) {
+            log.error("알 수 없는 Client Id 접근 " + clientId);
+            model.addAttribute("error", "Unknown Client Id");
+            return "/error";
+        }
+        log.info("Request Login Page from Client ID : " + client.getClientId());
+        /*
+         * "response_type" : "code",
+         * "scope" : String value seperated by one space (openid 가 꼭 들어있음.)
+         * "client_id" : Client ID
+         * "redirect_uri" : Client ID's Redirect URI
+         * "state" : Random String value (length : 8)
+         * */
+        model.addAttribute("response_type", "code");
+        model.addAttribute("scope", client.getScopes());
+        model.addAttribute("client_id", client.getClientId());
+        model.addAttribute("redirect_uri", client.getRedirectUri());
+        model.addAttribute("state", request.getParameter("state"));
+        // 에러메시지
+        if(request.getParameter("error") != null) {
+            model.addAttribute("error", request.getParameter("error"));
+        }
+        return "/login";
+    }
+
+    @PostMapping("/loginAction")
+    public String postLoginAction(HttpServletRequest request,RedirectAttributes attributes) {
+        /*
+         * "email" : 사용자 이메일
+         * "password" : 사용자 비밀번호
+         * "response_type" : "code",
+         * "scope" : String value seperated by one space (openid 가 꼭 들어있음.)
+         * "client_id" : Client ID
+         * "redirect_uri" : Client ID's Redirect URI
+         * "state" : Random String value (length : 8)
+         * */
+
+        attributes.addAttribute("response_type", request.getParameter("response_type"));
+        attributes.addAttribute("scope", request.getParameter("scope"));
+        attributes.addAttribute("client_id", request.getParameter("client_id"));
+        attributes.addAttribute("redirect_uri", request.getParameter("redirect_uri"));
+        attributes.addAttribute("state", request.getParameter("state"));
+
+        // TODO 리소스 서버와의 통신으로 사용자 인증 진행
+        UserLoginProperty userProperties = authorService.getAuthenticatedUser(request);
+
+        if (userProperties.isAuthenticated() == true) {
+            // 사용자 식별자를 전달
+            attributes.addAttribute("email", userProperties.getEmail());
+            return "redirect:authorize";
+        }else{
+            attributes.addAttribute("error", "사용자 인증 실패!");
+            return "redirect:login";
+        }
+
+    }
 }

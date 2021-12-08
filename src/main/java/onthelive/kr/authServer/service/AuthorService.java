@@ -6,11 +6,20 @@ import jdk.jshell.execution.Util;
 import lombok.RequiredArgsConstructor;
 import onthelive.kr.authServer.entity.*;
 import onthelive.kr.authServer.model.Client;
+import onthelive.kr.authServer.model.UserLoginProperty;
 import onthelive.kr.authServer.repository.AuthorRepository;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.coyote.Request;
 import org.aspectj.apache.bcel.classfile.Code;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
 
 import javax.persistence.NoResultException;
 import javax.servlet.http.HttpServletRequest;
@@ -26,6 +35,9 @@ public class AuthorService {
 
     private final AuthorRepository authorRepository;
     private final UtilService utilService;
+
+    @Value("${resourceServer.authenticationUrl}")
+    private String autheticationUrl;
 
     public Client getClient(String clientId) {
         return authorRepository.getClient(clientId);
@@ -70,7 +82,7 @@ public class AuthorService {
         authorRepository.saveCode(codeEntity);
     }
 
-    public void saveCode(String code, RequestEntity request, String scopes, UserEntity user) {
+    public void saveCode(String code, RequestEntity request, String scopes, String user) {
 
         CodeEntity codeEntity = new CodeEntity(
                 code,
@@ -124,7 +136,7 @@ public class AuthorService {
 
         HashMap<String,Object> payload = new HashMap<>();
         payload.put("iss","http://localhost:8091/");
-        payload.put("sub", code.getUser().getSub());
+        payload.put("sub", code.getUser());
         payload.put("aud",code.getClientId());
         payload.put("iat", new Date().getTime());
         payload.put("exp", new Date().getTime() + (1000 * 60 * 5));
@@ -142,5 +154,36 @@ public class AuthorService {
 
     public UserEntity getUser(String user) {
         return authorRepository.getUser(user);
+    }
+
+    public UserLoginProperty getAuthenticatedUser(HttpServletRequest request) {
+        String email = request.getParameter("email");
+        String password = request.getParameter("password");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Type", "application/x-www-form-urlencoded");
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("email", email);
+        body.add("password", password);
+
+        HttpEntity entity = new HttpEntity(body, headers);
+
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<HashMap> response = null;
+
+        try {
+            response = restTemplate.postForEntity(autheticationUrl, entity, HashMap.class);
+        } catch (HttpClientErrorException.Unauthorized e){
+            return new UserLoginProperty("", false);
+        } catch (Exception e){
+            e.printStackTrace();
+            return new UserLoginProperty("", false);
+        }
+
+        if (response.getStatusCodeValue() >= 200 && response.getStatusCodeValue() < 300) {
+            return new UserLoginProperty((String)response.getBody().get("email") , (boolean)response.getBody().get("authenticated"));
+        }
+
+        return new UserLoginProperty("",false);
     }
 }
