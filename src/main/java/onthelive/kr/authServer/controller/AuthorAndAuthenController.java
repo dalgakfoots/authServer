@@ -203,28 +203,7 @@ public class AuthorAndAuthenController {
                 authorService.removeCode(key);
                 if (requestEntity.getClientId().equals(clientId)) {
 
-                    String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
-                    byte[] sharedSecret = stringSharedSecret.getBytes();
-
-                    HashMap<String, Object> payload = new HashMap<>();
-                    payload.put("iss", "http://localhost:8091/");
-                    payload.put("sub", clientId);
-                    payload.put("aud", "http://localhost:9002/");
-                    payload.put("iat", LocalDateTime.now().toString());
-                    payload.put("exp", LocalDateTime.now().plusMinutes(5).toString());
-                    payload.put("iat", new Date().getTime());
-                    payload.put("exp", new Date().getTime() + (1000 * 60 * 5));
-                    payload.put("jti", RandomStringUtils.randomAlphanumeric(8));
-
-                    // HS256을 이용한 대칭 시그니처
-                    // TODO 시크릿의 최소 크기는 256비트임.
-                    JWSSigner signer = new MACSigner(sharedSecret);
-
-                    JWSObject jwsObject = new JWSObject(
-                            new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
-                    );
-
-                    jwsObject.sign(signer);
+                    String access_token = getAccessToken(clientId); // Access Token 발급
 
                     // ID Token 발급
                     String serializedIdToken = "";
@@ -232,8 +211,7 @@ public class AuthorAndAuthenController {
                         serializedIdToken = authorService.generateSerializedIdToken(codeEntity);
                     }
 
-                    String access_token = jwsObject.serialize();
-                    String refresh_token = RandomStringUtils.randomAlphanumeric(32);
+                    String refresh_token = RandomStringUtils.randomAlphanumeric(32); // Refresh Token 발급
 
                     TokenResponseEntity tokenResponseEntity = new TokenResponseEntity(
                             clientId,
@@ -266,6 +244,7 @@ public class AuthorAndAuthenController {
 
             TokenResponseEntity tokenResponseEntity = authorService.getTokenResponse(clientId);
             String refreshToken = tokenResponseEntity.getRefreshToken();
+            String idToken = tokenResponseEntity.getSerializedIdToken();
 
             if (refreshToken != null && refreshToken.equals(request.getParameter("refresh_token"))) {
 
@@ -278,23 +257,23 @@ public class AuthorAndAuthenController {
                     return new ResponseEntity(res, HttpStatus.BAD_REQUEST);
                 }
 
-                String access_token = RandomStringUtils.randomAlphanumeric(32);
+                String access_token = getAccessToken(clientId);
                 authorService.removeTokenResponse(tokenResponseEntity);
 
                 TokenResponseEntity nextTokenResponseEntity = authorService.saveTokenResponse(new TokenResponseEntity(
                         clientId,
                         access_token,
                         refreshToken,
-                        "Bearer", tokenResponseEntity.getScopes(), "TODO TAKE IDTOKEN"
-                )); // TODO 리프레쉬토큰을 사용할 때에도 ID TOKEN을 재발급 해야하는가? 고려해야함.
+                        "Bearer", tokenResponseEntity.getScopes(), idToken
+                ));
 
                 TokenResponse tokenResponse = new TokenResponse(
                         nextTokenResponseEntity.getClientId(),
                         nextTokenResponseEntity.getAccessToken(),
                         nextTokenResponseEntity.getRefreshToken(),
                         nextTokenResponseEntity.getTokenType(),
-                        nextTokenResponseEntity.getScopes(), ""
-                ); // TODO 리프레쉬토큰을 사용할 때에도 ID TOKEN을 재발급 해야하는가? 고려해야함.
+                        nextTokenResponseEntity.getScopes(), nextTokenResponseEntity.getSerializedIdToken()
+                );
 
                 return new ResponseEntity(tokenResponse, HttpStatus.OK);
 
@@ -308,6 +287,34 @@ public class AuthorAndAuthenController {
         }
 
         return new ResponseEntity(HttpStatus.BAD_REQUEST);
+    }
+
+    private String getAccessToken(String clientId) throws JOSEException {
+        String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
+        byte[] sharedSecret = stringSharedSecret.getBytes();
+
+        HashMap<String, Object> payload = new HashMap<>();
+        payload.put("iss", "http://localhost:8091/");
+        payload.put("sub", clientId);
+        payload.put("aud", "http://localhost:9002/");
+        payload.put("iat", LocalDateTime.now().toString());
+        payload.put("exp", LocalDateTime.now().plusMinutes(5).toString());
+        payload.put("iat", new Date().getTime());
+        payload.put("exp", new Date().getTime() + (1000 * 60 * 5));
+        payload.put("jti", RandomStringUtils.randomAlphanumeric(8));
+
+        // HS256을 이용한 대칭 시그니처
+        // TODO 시크릿의 최소 크기는 256비트임.
+        JWSSigner signer = new MACSigner(sharedSecret);
+
+        JWSObject jwsObject = new JWSObject(
+                new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
+        );
+
+        jwsObject.sign(signer);
+
+        String access_token = jwsObject.serialize();
+        return access_token;
     }
 
     /*

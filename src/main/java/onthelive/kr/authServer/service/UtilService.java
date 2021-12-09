@@ -58,12 +58,9 @@ public class UtilService {
 
         ObjectMapper objectMapper = new ObjectMapper();
 
-        System.out.println("serializedIdToken = " + serializedIdToken);
         String payload = serializedIdToken.split("\\.")[1];
-        System.out.println("payload = " + payload);
         byte[] decode = Base64.getDecoder().decode(payload.getBytes());
         String decodedPayload = new String(decode);
-        System.out.println("decodedPayload = " + decodedPayload);
 
         HashMap<String, String> payloadMapper = objectMapper.readValue(decodedPayload, HashMap.class);
         return payloadMapper;
