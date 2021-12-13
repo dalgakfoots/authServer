@@ -31,6 +31,7 @@ public class TokenResponseEntity implements Serializable {
 
     private String scopes;
 
+    @Column(length = 2048)
     private String serializedIdToken;
 
     public TokenResponseEntity(String clientId, String accessToken, String refreshToken, String tokenType, String scopes, String serializedIdToken) {

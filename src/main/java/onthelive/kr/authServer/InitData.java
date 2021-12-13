@@ -1,9 +1,14 @@
 package onthelive.kr.authServer;
 
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.jwk.RSAKey;
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import onthelive.kr.authServer.entity.ClientEntity;
 import onthelive.kr.authServer.entity.ProtectedResourceEntity;
+import onthelive.kr.authServer.entity.RsaKeyEntity;
 import onthelive.kr.authServer.entity.UserEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +32,7 @@ public class InitData {
         preprocess.prepClient();
         preprocess.prepProtectedResource();
         preprocess.prepUser();
+        preprocess.prepRsaKey();
     }
 
     @Component
@@ -35,6 +41,7 @@ public class InitData {
     static class Preprocess{
 
         private final EntityManager em;
+        private final RSAKey initRsaKey;
 
         public void prepClient(){
             ClientEntity client = new ClientEntity("oauth-client-1",
@@ -61,6 +68,21 @@ public class InitData {
             em.persist(user);
 
         }
+
+
+        public void prepRsaKey(){
+            RSAKey publicKey = initRsaKey.toPublicJWK();
+            RsaKeyEntity rsaKeyEntity = new RsaKeyEntity(
+                    "RS256",
+                    publicKey.getPublicExponent().toString(),
+                    publicKey.getModulus().toString(),
+                    "RSA",
+                    publicKey.getKeyID()
+            );
+
+            em.persist(rsaKeyEntity);
+        }
+
     }
 
 }

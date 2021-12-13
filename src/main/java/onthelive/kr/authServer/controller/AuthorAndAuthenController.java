@@ -3,6 +3,8 @@ package onthelive.kr.authServer.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.RSAKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import onthelive.kr.authServer.entity.*;
@@ -32,7 +34,9 @@ public class AuthorAndAuthenController {
     private final UtilService utilService;
     private final AuthorService authorService;
 
-    private static HashMap memDB = new HashMap();
+    /* TODO onthelive.kr.authServer.configuration.RsaKeyGenerator.initRsaKey() 를 통해 서버 실행 시점에 RSA 키를 생성하고 있음.
+                키 생성 시점 및 방법에 대해 고려할 것. */
+    private final RSAKey initRsaKey;
 
     @GetMapping("/")
     public String index(Model model) {
@@ -290,8 +294,8 @@ public class AuthorAndAuthenController {
     }
 
     private String getAccessToken(String clientId) throws JOSEException {
-        String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
-        byte[] sharedSecret = stringSharedSecret.getBytes();
+        // RS256 알고리즘의 비대칭 시그니처
+        JWSSigner signer = new RSASSASigner(initRsaKey);
 
         HashMap<String, Object> payload = new HashMap<>();
         payload.put("iss", "http://localhost:8091/");
@@ -303,12 +307,9 @@ public class AuthorAndAuthenController {
         payload.put("exp", new Date().getTime() + (1000 * 60 * 5));
         payload.put("jti", RandomStringUtils.randomAlphanumeric(8));
 
-        // HS256을 이용한 대칭 시그니처
-        // TODO 시크릿의 최소 크기는 256비트임.
-        JWSSigner signer = new MACSigner(sharedSecret);
-
         JWSObject jwsObject = new JWSObject(
-                new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
+                new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(initRsaKey.getKeyID()).build(),
+                new Payload(payload)
         );
 
         jwsObject.sign(signer);

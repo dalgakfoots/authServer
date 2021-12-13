@@ -2,6 +2,8 @@ package onthelive.kr.authServer.service;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.RSASSASigner;
+import com.nimbusds.jose.jwk.RSAKey;
 import jdk.jshell.execution.Util;
 import lombok.RequiredArgsConstructor;
 import onthelive.kr.authServer.entity.*;
@@ -35,6 +37,8 @@ public class AuthorService {
 
     private final AuthorRepository authorRepository;
     private final UtilService utilService;
+
+    private final RSAKey initRsaKey; // onthelive.kr.authServer.configuration.RsaKeyGenerator.initRsaKey()
 
     @Value("${resourceServer.authenticationUrl}")
     private String autheticationUrl;
@@ -131,8 +135,9 @@ public class AuthorService {
     }
 
     public String generateSerializedIdToken(CodeEntity code) throws JOSEException {
-        String stringSharedSecret = "shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!shared OAuth token secret!";
-        byte[] sharedSecret = stringSharedSecret.getBytes();
+
+        // RS256 알고리즘의 비대칭 시그니처
+        JWSSigner signer = new RSASSASigner(initRsaKey);
 
         HashMap<String,Object> payload = new HashMap<>();
         payload.put("iss","http://localhost:8091/");
@@ -141,10 +146,9 @@ public class AuthorService {
         payload.put("iat", new Date().getTime());
         payload.put("exp", new Date().getTime() + (1000 * 60 * 5));
 
-        JWSSigner signer = new MACSigner(sharedSecret);
-
         JWSObject jwsObject = new JWSObject(
-                new JWSHeader(JWSAlgorithm.HS256), new Payload(payload)
+                new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(initRsaKey.getKeyID()).build(),
+                new Payload(payload)
         );
 
         jwsObject.sign(signer);
