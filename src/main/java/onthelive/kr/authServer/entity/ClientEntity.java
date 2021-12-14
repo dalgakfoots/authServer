@@ -9,7 +9,7 @@ import java.util.List;
 
 @Entity
 @Getter
-@Setter(AccessLevel.PRIVATE)
+@Setter
 @NoArgsConstructor
 @Table(name = "clients")
 public class ClientEntity implements Serializable {
@@ -39,4 +39,33 @@ public class ClientEntity implements Serializable {
 
     private String scopes;
 
+    private String tokenEndpointAuthMethod;
+
+    private String grantTypes;
+
+    private String responseTypes;
+
+    private Long clientIdCreatedAt;
+    private Long clientSecretExpiresAt;
+
+    private String registrationAccessToken;
+    private String registrationClientUri;
+
+    @Override
+    public String toString() {
+        return "ClientEntity{" +
+                "id=" + id +
+                ", clientId='" + clientId + '\'' +
+                ", clientSecret='" + clientSecret + '\'' +
+                ", redirectUri='" + redirectUri + '\'' +
+                ", scopes='" + scopes + '\'' +
+                ", tokenEndpointAuthMethod='" + tokenEndpointAuthMethod + '\'' +
+                ", grantTypes='" + grantTypes + '\'' +
+                ", responseTypes='" + responseTypes + '\'' +
+                ", clientIdCreatedAt=" + clientIdCreatedAt +
+                ", clientSecretExpiresAt=" + clientSecretExpiresAt +
+                ", registrationAccessToken='" + registrationAccessToken + '\'' +
+                ", registrationClientUri='" + registrationClientUri + '\'' +
+                '}';
+    }
 }
