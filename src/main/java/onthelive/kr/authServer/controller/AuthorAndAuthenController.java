@@ -155,6 +155,11 @@ public class AuthorAndAuthenController {
      * 2. grant_type == 'refresh_token' 일 경우
      *       서버에 저장되어 있는 client_id 로 refresh token 을 조회한다.
      *       일치하는 refresh token을 발견한 경우, 새로운 access token 을 발급하여 전달한다.
+     *
+     * 3. grant_type == 'client_credentials' 일 경우
+     *       서버에 저장되어 있는 client_id - client_secret - scopes 를 체크 한뒤,
+     *       Access Token 을 발급한다.
+     *
      * */
     @PostMapping("/token")
     public ResponseEntity postToken(HttpServletRequest request, HttpServletResponse response) throws JOSEException {
@@ -288,6 +293,44 @@ public class AuthorAndAuthenController {
                 return new ResponseEntity(res, HttpStatus.BAD_REQUEST);
             }
 
+        } else if (request.getParameter("grant_type").equals("client_credentials")) {
+            List requestScopes = utilService.getScopes(request.getParameter("scope")); // TODO null 일 경우에는?
+            List clientScopes = utilService.getScopes(client.getScopes());
+
+            List temp = new ArrayList(requestScopes);
+            Collections.copy(temp, requestScopes);
+            temp.removeAll(clientScopes);
+
+            if (temp.size() > 0) {
+                log.error("invalid scope error in /token client_credentials");
+                HashMap res = new HashMap();
+                res.put("error", "invalid_scope");
+                return new ResponseEntity(res, HttpStatus.BAD_REQUEST);
+            }
+
+            String access_token = getAccessToken(clientId);
+
+            TokenResponseEntity tokenResponseEntity = new TokenResponseEntity(
+                    clientId,
+                    access_token,
+                    "",
+                    "Bearer",
+                    request.getParameter("scope"),
+                    ""
+            );
+
+            authorService.saveTokenResponse(tokenResponseEntity);
+            log.info("Client credentials access token 발급 : " + access_token);
+
+            TokenResponse tokenResponse = new TokenResponse(
+                    tokenResponseEntity.getClientId(),
+                    tokenResponseEntity.getAccessToken(),
+                    tokenResponseEntity.getRefreshToken(),
+                    tokenResponseEntity.getTokenType(),
+                    tokenResponseEntity.getScopes(),
+                    tokenResponseEntity.getSerializedIdToken()
+            );
+            return new ResponseEntity(tokenResponse, HttpStatus.OK);
         }
 
         return new ResponseEntity(HttpStatus.BAD_REQUEST);
