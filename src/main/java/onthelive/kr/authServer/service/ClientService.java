@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Arrays;
+import java.util.HashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +35,6 @@ public class ClientService {
 
         if(!Arrays.stream(new String[]{"secret_basic", "secret_post", "none"})
                 .anyMatch(s -> s.equals(entity.getTokenEndpointAuthMethod()))){
-            log.error("illegal auth method");
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
@@ -70,7 +70,6 @@ public class ClientService {
                 !Arrays.stream(new String[]{"code"}).anyMatch(
                         s -> s.equals(entity.getResponseTypes()))
         ){
-            log.error("illegal grantTypes or ResponseTypes");
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
 
@@ -85,7 +84,7 @@ public class ClientService {
             entity.setScopes(request.getScope());
         }
 
-        return new ResponseEntity<ClientEntity>(entity, HttpStatus.OK);
+        return new ResponseEntity<>(entity, HttpStatus.OK);
     }
 
     public ResponseEntity<ClientEntity> authorizeConfigurationEndpointRequest(HttpServletRequest request , String clientId) {
@@ -99,7 +98,7 @@ public class ClientService {
 
         ClientEntity client = clientRepository.getClientEntity(clientId);
         if (client.getClientId() == null){
-            return new ResponseEntity(HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
 
         String auth = request.getHeader("authorization");
